@@ -776,8 +776,8 @@ class MonoCalibrator(Calibrator):
             if self.camera_model == CAMERA_MODEL.FISHEYE:
                 raise NotImplemented("Can't perform fisheye calibration with ChArUco board")
 
-            reproj_err, self.intrinsics, self.distortion, rvecs, tvecs = cv2.aruco.calibrateCameraCharuco(
-                    ipts, ids, boards[0].charuco_board, self.size, intrinsics_in, None)
+            reproj_err, self.intrinsics, dist_coeffs, rvecs, tvecs = cv2.aruco.calibrateCameraCharuco(
+                    ipts, ids, boards[0].charuco_board, self.size, intrinsics_in, None, flags=self.calib_flags)
 
         elif self.camera_model == CAMERA_MODEL.PINHOLE:
             print("mono pinhole calibration...")
@@ -787,12 +787,7 @@ class MonoCalibrator(Calibrator):
                     intrinsics_in,
                     None,
                     flags = self.calib_flags)
-            # OpenCV returns more than 8 coefficients (the additional ones all zeros) when CALIB_RATIONAL_MODEL is set.
-            # The extra ones include e.g. thin prism coefficients, which we are not interested in.
-            if self.calib_flags & cv2.CALIB_RATIONAL_MODEL:
-                self.distortion = dist_coeffs.flat[:8].reshape(-1, 1) # rational polynomial
-            else:
-                self.distortion = dist_coeffs.flat[:5].reshape(-1, 1) # plumb bob
+
         elif self.camera_model == CAMERA_MODEL.FISHEYE:
             print("mono fisheye calibration...")
             # WARNING: cv2.fisheye.calibrate wants float64 points
@@ -803,6 +798,14 @@ class MonoCalibrator(Calibrator):
             reproj_err, self.intrinsics, self.distortion, rvecs, tvecs = cv2.fisheye.calibrate(
                 opts, ipts, self.size,
                 intrinsics_in, None, flags = self.fisheye_calib_flags)
+
+        # OpenCV returns more than 8 coefficients (the additional ones all zeros) when CALIB_RATIONAL_MODEL is set.
+        # The extra ones include e.g. thin prism coefficients, which we are not interested in.
+        if self.pattern == Patterns.ChArUco or self.camera_model == CAMERA_MODEL.PINHOLE:
+            if self.calib_flags & cv2.CALIB_RATIONAL_MODEL:
+                self.distortion = dist_coeffs.flat[:8].reshape(-1, 1) # rational polynomial
+            else:
+                self.distortion = dist_coeffs.flat[:5].reshape(-1, 1) # plumb bob
 
         # R is identity matrix for monocular calibration
         self.R = numpy.eye(3, dtype=numpy.float64)
