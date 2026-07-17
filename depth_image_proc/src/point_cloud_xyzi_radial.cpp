@@ -1,33 +1,30 @@
 // Copyright (c) 2008, Willow Garage, Inc.
 // All rights reserved.
 //
-// Software License Agreement (BSD License 2.0)
-//
 // Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+// modification, are permitted provided that the following conditions are met:
 //
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above
-//    copyright notice, this list of conditions and the following
-//    disclaimer in the documentation and/or other materials provided
-//    with the distribution.
-//  * Neither the name of the Willow Garage nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
 //
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-// FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-// COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-// BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-// CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-// LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+//    * Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//
+//    * Neither the name of the copyright holder nor the names of its
+//      contributors may be used to endorse or promote products derived from
+//      this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <functional>
@@ -37,6 +34,7 @@
 
 #include "depth_image_proc/visibility.h"
 
+#include <image_proc/utils.hpp>
 #include <image_transport/camera_common.hpp>
 #include <image_transport/image_transport.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -73,7 +71,7 @@ PointCloudXyziRadialNode::PointCloudXyziRadialNode(const rclcpp::NodeOptions & o
       std::placeholders::_2,
       std::placeholders::_3));
 
-  // Create publisher with connect callback
+  // Setup lazy subscriber using publisher connection callback
   rclcpp::PublisherOptions pub_options;
   pub_options.event_callbacks.matched_callback =
     [this](rclcpp::MatchedInfo & s)
@@ -98,16 +96,23 @@ PointCloudXyziRadialNode::PointCloudXyziRadialNode(const rclcpp::NodeOptions & o
 
         // depth image can use different transport.(e.g. compressedDepth)
         image_transport::TransportHints depth_hints(this, "raw", "depth_image_transport");
-        sub_depth_.subscribe(this, depth_topic, depth_hints.getTransport());
+        // Create subscriber with QoS matched to subscribed topic publisher
+        auto depth_qos_profile = image_proc::getTopicQosProfile(this, depth_topic);
+        sub_depth_.subscribe(this, depth_topic, depth_hints.getTransport(), depth_qos_profile);
 
         // intensity uses normal ros transport hints.
         image_transport::TransportHints hints(this);
-        sub_intensity_.subscribe(this, intensity_topic, hints.getTransport());
+        // Create subscriber with QoS matched to subscribed topic publisher
+        auto qos_profile = image_proc::getTopicQosProfile(this, intensity_topic);
+        sub_intensity_.subscribe(this, intensity_topic, hints.getTransport(), qos_profile);
         sub_info_.subscribe(this, intensity_info_topic);
       }
     };
+
+  // Allow overriding QoS settings (history, depth, reliability)
+  pub_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
   pub_point_cloud_ = create_publisher<sensor_msgs::msg::PointCloud2>(
-    "points", rclcpp::SensorDataQoS(), pub_options);
+    "points", rclcpp::SystemDefaultsQoS(), pub_options);
 }
 
 void PointCloudXyziRadialNode::imageCb(

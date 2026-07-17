@@ -1,33 +1,30 @@
 // Copyright (c) 2008, Willow Garage, Inc.
 // All rights reserved.
 //
-// Software License Agreement (BSD License 2.0)
-//
 // Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+// modification, are permitted provided that the following conditions are met:
 //
-//  * Redistributions of source code must retain the above copyright
-//    notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above
-//    copyright notice, this list of conditions and the following
-//    disclaimer in the documentation and/or other materials provided
-//    with the distribution.
-//  * Neither the name of the Willow Garage nor the names of its
-//    contributors may be used to endorse or promote products derived
-//    from this software without specific prior written permission.
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
 //
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-// FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-// COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-// BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-// CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-// LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+//    * Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//
+//    * Neither the name of the copyright holder nor the names of its
+//      contributors may be used to endorse or promote products derived from
+//      this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
 #include <chrono>
@@ -133,14 +130,21 @@ RegisterNode::RegisterNode(const rclcpp::NodeOptions & options)
         sub_depth_info_.unsubscribe();
         sub_rgb_info_.unsubscribe();
       } else if (!sub_depth_image_.getSubscriber()) {
+        // Allow overriding QoS settings (history, depth, reliability)
+        rclcpp::SubscriptionOptions sub_options;
+        sub_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
+
         // For compressed topics to remap appropriately, we need to pass a
         // fully expanded and remapped topic name to image_transport
         auto node_base = this->get_node_base_interface();
         std::string topic = node_base->resolve_topic_or_service_name("depth/image_rect", false);
         image_transport::TransportHints hints(this, "raw", "depth_image_transport");
-        sub_depth_image_.subscribe(this, topic, hints.getTransport());
-        sub_depth_info_.subscribe(this, "depth/camera_info");
-        sub_rgb_info_.subscribe(this, "rgb/camera_info");
+        sub_depth_image_.subscribe(this, topic, hints.getTransport(), rmw_qos_profile_default,
+          sub_options);
+        auto qos = rmw_qos_profile_default;
+        qos.depth = 10;
+        sub_depth_info_.subscribe(this, "depth/camera_info", qos, sub_options);
+        sub_rgb_info_.subscribe(this, "rgb/camera_info", qos, sub_options);
       }
     };
   // For compressed topics to remap appropriately, we need to pass a
@@ -149,6 +153,8 @@ RegisterNode::RegisterNode(const rclcpp::NodeOptions & options)
   std::string topic =
     node_base->resolve_topic_or_service_name("depth_registered/image_rect", false);
 
+  // Allow overriding QoS settings (history, depth, reliability)
+  pub_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
   pub_registered_ =
     image_transport::create_camera_publisher(
     this, topic,

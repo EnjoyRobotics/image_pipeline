@@ -2,6 +2,71 @@
 Changelog for package camera_calibration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+5.0.13 (2026-07-10)
+-------------------
+* Remove Inactive Maintainer
+* Contributors: Josh Whitley
+
+5.0.12 (2026-04-24)
+-------------------
+* Update index.ros.org package website links (backport `#1101 <https://github.com/ros-perception/image_pipeline/issues/1101>`_) (`#1104 <https://github.com/ros-perception/image_pipeline/issues/1104>`_)
+* Contributors: mergify[bot]
+
+5.0.11 (2025-05-21)
+-------------------
+
+5.0.10 (2025-04-22)
+-------------------
+* Replace OpenCV version string comparison with semver. (backport `#1087 <https://github.com/ros-perception/image_pipeline/issues/1087>`_) (`#1088 <https://github.com/ros-perception/image_pipeline/issues/1088>`_)
+* Contributors: mergify[bot]
+
+5.0.9 (2025-02-27)
+------------------
+
+5.0.8 (2025-02-13)
+------------------
+
+5.0.7 (2025-02-10)
+------------------
+* Check repeatedly (`#1066 <https://github.com/ros-perception/image_pipeline/issues/1066>`_)
+* improve stereo calibration tutorial (backport `#1065 <https://github.com/ros-perception/image_pipeline/issues/1065>`_) (`#1067 <https://github.com/ros-perception/image_pipeline/issues/1067>`_)
+  Co-authored-by: Michael Ferguson <mfergs7@gmail.com>
+* Contributors: Tatsuro Sakaguchi, mergify[bot]
+
+5.0.6 (2024-12-11)
+------------------
+
+5.0.5 (2024-10-31)
+------------------
+
+5.0.4 (2024-08-20)
+------------------
+
+5.0.3 (2024-07-16)
+------------------
+* Added stereo calibration using charuco board (backport `#976 <https://github.com/ros-perception/image_pipeline/issues/976>`_) (`#1002 <https://github.com/ros-perception/image_pipeline/issues/1002>`_)
+  From `#972 <https://github.com/ros-perception/image_pipeline/issues/972>`_
+  Doing this first for rolling.
+  This was a TODO in the repository, opening this PR to add this feature.
+  - The main issue why this wasn't possible imo is the way `mk_obj_points`
+  works. I'm using the inbuilt opencv function to get the points there.
+  - The other is a condition when aruco markers are detected they are
+  added as good points, This is fine in case of mono but in stereo these
+  have to be the same number as the object points to find matches although
+  this should be possible with aruco.<hr>This is an automatic backport of
+  pull request `#976 <https://github.com/ros-perception/image_pipeline/issues/976>`_ done by [Mergify](https://mergify.com).
+  Co-authored-by: Myron Rodrigues <41271144+MRo47@users.noreply.github.com>
+* Change camera info message to lower case (backport `#1005 <https://github.com/ros-perception/image_pipeline/issues/1005>`_) (`#1007 <https://github.com/ros-perception/image_pipeline/issues/1007>`_)
+  Change camera info message to lower case since message type had been
+  change in rolling and humble.
+  [](https://github.com/ros2/common_interfaces/blob/rolling/sensor_msgs/msg/CameraInfo.msg)<hr>This
+  is an automatic backport of pull request `#1005 <https://github.com/ros-perception/image_pipeline/issues/1005>`_ done by
+  [Mergify](https://mergify.com).
+  ---------
+  Co-authored-by: SFhmichael <146928033+SFhmichael@users.noreply.github.com>
+  Co-authored-by: Alejandro Hernández Cordero <ahcorde@gmail.com>
+* Contributors: mergify[bot]
+
 5.0.2 (2024-05-27)
 ------------------
 * fix: cv2.aruco.interpolateCornersCharuco is deprecated (backport `#979 <https://github.com/ros-perception/image_pipeline/issues/979>`_) (`#980 <https://github.com/ros-perception/image_pipeline/issues/980>`_)

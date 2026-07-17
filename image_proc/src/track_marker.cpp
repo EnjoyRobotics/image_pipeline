@@ -1,34 +1,33 @@
 // Copyright 2024 Open Navigation LLC
 // All rights reserved.
 //
-// Software License Agreement (BSD License 2.0)
-//
 // Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions
-// are met:
+// modification, are permitted provided that the following conditions are met:
 //
-// * Redistributions of source code must retain the above copyright
-//   notice, this list of conditions and the following disclaimer.
-// * Redistributions in binary form must reproduce the above
-//   copyright notice, this list of conditions and the following
-//   disclaimer in the documentation and/or other materials provided
-//   with the distribution.
-// * Neither the name of {copyright_holder} nor the names of its
-//   contributors may be used to endorse or promote products derived
-//   from this software without specific prior written permission.
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
 //
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-// FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-// COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-// BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-// LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-// CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-// LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-// ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+//    * Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//
+//    * Neither the name of the copyright holder nor the names of its
+//      contributors may be used to endorse or promote products derived from
+//      this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+// AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+// IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+// ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+// LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+// CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+// SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+// INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+// CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
+
+#include <tf2/LinearMath/Quaternion.h>
 
 #include <cstddef>
 #include <functional>
@@ -40,9 +39,9 @@
 #include <image_proc/track_marker.hpp>
 #include <image_proc/utils.hpp>
 #include <image_transport/image_transport.hpp>
-#include <opencv2/core/quaternion.hpp>
 #include <rclcpp/qos.hpp>
 #include <rclcpp/rclcpp.hpp>
+#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 
 namespace image_proc
 {
@@ -64,8 +63,17 @@ TrackMarkerNode::TrackMarkerNode(const rclcpp::NodeOptions & options)
   // Default dictionary is cv::aruco::DICT_6X6_250
   int dict_id = this->declare_parameter("dictionary", 10);
 
+  #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
+  detector_params_ = cv::makePtr<cv::aruco::DetectorParameters>();
+  #else
   detector_params_ = cv::aruco::DetectorParameters::create();
+  #endif
+
+  #if CV_VERSION_MAJOR > 4 || CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR >= 7
+  dictionary_ = cv::makePtr<cv::aruco::Dictionary>(cv::aruco::getPredefinedDictionary(dict_id));
+  #else
   dictionary_ = cv::aruco::getPredefinedDictionary(dict_id);
+  #endif
 
   // Setup lazy subscriber using publisher connection callback
   rclcpp::PublisherOptions pub_options;
@@ -86,10 +94,8 @@ TrackMarkerNode::TrackMarkerNode(const rclcpp::NodeOptions & options)
       }
     };
 
-  // Allow overriding QoS settings (history, depth, reliability)
+  // Create publisher - allow overriding QoS settings (history, depth, reliability)
   pub_options.qos_overriding_options = rclcpp::QosOverridingOptions::with_default_policies();
-
-  // Create publisher
   pub_ = this->create_publisher<geometry_msgs::msg::PoseStamped>(
     "tracked_pose", 10, pub_options);
 }
@@ -137,11 +143,9 @@ void TrackMarkerNode::imageCb(
       pose.pose.position.y = tvecs[0][1];
       pose.pose.position.z = tvecs[0][2];
       // Convert angle-axis to quaternion
-      cv::Quatd q = cv::Quatd::createFromRvec(rvecs[0]);
-      pose.pose.orientation.x = q.x;
-      pose.pose.orientation.y = q.y;
-      pose.pose.orientation.z = q.z;
-      pose.pose.orientation.w = q.w;
+      const tf2::Vector3 rvec(rvecs[0][0], rvecs[0][1], rvecs[0][2]);
+      const tf2::Quaternion q(rvec.normalized(), rvec.length());
+      tf2::convert(q, pose.pose.orientation);
       pub_->publish(pose);
     }
   }

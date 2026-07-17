@@ -1,4 +1,4 @@
-# Copyright (c) 2008, Willow Garage, Inc.
+# Copyright (c) 2022, CHRISLab, Christopher Newport University
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -27,44 +27,20 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-import os
+"""Demonstration of basic launch of the image_flip_node with remappings."""
 
-from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import ComposableNodeContainer
-from launch_ros.descriptions import ComposableNode
+import launch_ros.actions
 
 
-# This is basically the same as image_publsher_file.launch.py - but using the component
 def generate_launch_description():
-    filename = os.path.join(get_package_share_directory('image_publisher'), 'launch',
-                            'splash.png')
-    use_sim_time = LaunchConfiguration('use_sim_time', default='false')
+    """Launch description for basic launch of the image_flip."""
     return LaunchDescription([
-
-        DeclareLaunchArgument(
-            'use_sim_time',
-            default_value='false',
-            description='Use simulation clock if true'),
-
-        ComposableNodeContainer(
-            name='image_publisher_container',
-            namespace='',
-            package='rclcpp_components',
-            executable='component_container',
-            composable_node_descriptions=[
-                ComposableNode(
-                    package='image_publisher',
-                    plugin='image_publisher::ImagePublisher',
-                    name='image_publisher',
-                    parameters=[{'filename': filename,
-                                 'use_sim_time': use_sim_time}],
-                    remappings=[('image_raw', '/camera/image_raw'),
-                                ('camera_info', '/camera/camera_info')],
-                )
-            ],
-            output='screen',
-        ),
-    ])
+        launch_ros.actions.Node(
+            package='image_rotate', executable='image_flip',
+            output='screen', name='camera_flip',
+            remappings=[('image',                'camera/rgb/image_raw'),
+                        ('rotated/image',        'camera_rotated/image_rotated')],
+            parameters=[{'output_frame_id': 'camera_rotated',
+                         'rotation_steps': 2,
+                         'use_camera_info': True}])])

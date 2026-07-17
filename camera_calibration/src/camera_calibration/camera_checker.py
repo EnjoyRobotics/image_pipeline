@@ -71,10 +71,10 @@ class ConsumerThread(threading.Thread):
 
     def run(self):
         while rclpy.ok():
-            m = self.queue.get()
             if self.queue.empty():
-                break
-        self.function(m)
+                continue
+            m = self.queue.get()
+            self.function(m)
 
 class CameraCheckerNode(Node):
 
@@ -164,9 +164,9 @@ class CameraCheckerNode(Node):
             image_points = C
             object_points = self.mc.mk_object_points([self.board], use_board_size=True)[0]
             dist_coeffs = numpy.zeros((4, 1))
-            camera_matrix = numpy.array( [ [ camera.P[0], camera.P[1], camera.P[2]  ],
-                                           [ camera.P[4], camera.P[5], camera.P[6]  ],
-                                           [ camera.P[8], camera.P[9], camera.P[10] ] ] )
+            camera_matrix = numpy.array( [ [ camera.p[0], camera.p[1], camera.p[2]  ],
+                                           [ camera.p[4], camera.p[5], camera.p[6]  ],
+                                           [ camera.p[8], camera.p[9], camera.p[10] ] ] )
             ok, rot, trans = cv2.solvePnP(object_points, image_points, camera_matrix, dist_coeffs)
             # Convert rotation into a 3x3 Rotation Matrix
             rot3x3, _ = cv2.Rodrigues(rot)
@@ -179,9 +179,9 @@ class CameraCheckerNode(Node):
             reprojection_rms = numpy.sqrt(numpy.sum(numpy.array(reprojection_errors) ** 2) / numpy.product(reprojection_errors.shape))
 
             # Print the results
-            print("Linearity RMS Error: %.3f Pixels      Reprojection RMS Error: %.3f Pixels" % (linearity_rms, reprojection_rms))
+            self.get_logger().info("Linearity RMS Error: %.3f Pixels      Reprojection RMS Error: %.3f Pixels" % (linearity_rms, reprojection_rms))
         else:
-            print('no chessboard')
+            self.get_logger().info('no chessboard')
 
     def handle_stereo(self, msg):
 
@@ -196,6 +196,6 @@ class CameraCheckerNode(Node):
 
             dimension = self.sc.chessboard_size(L, R, self.board, msg=(lcmsg, rcmsg))
 
-            print("epipolar error: %f pixels   dimension: %f m" % (epipolar, dimension))
+            self.get_logger().info("epipolar error: %f pixels   dimension: %f m" % (epipolar, dimension))
         else:
-            print("no chessboard")
+            self.get_logger().info("no chessboard")

@@ -2,6 +2,49 @@
 Changelog for package stereo_image_proc
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+5.0.13 (2026-07-10)
+-------------------
+* Remove Inactive Maintainer
+* Contributors: Josh Whitley
+
+5.0.12 (2026-04-24)
+-------------------
+* Cleanup bsd 3 clause license usage (backport `#1125 <https://github.com/ros-perception/image_pipeline/issues/1125>`_) (`#1141 <https://github.com/ros-perception/image_pipeline/issues/1141>`_)
+* Update index.ros.org package website links (backport `#1101 <https://github.com/ros-perception/image_pipeline/issues/1101>`_) (`#1104 <https://github.com/ros-perception/image_pipeline/issues/1104>`_)
+* Contributors: mergify[bot]
+
+5.0.11 (2025-05-21)
+-------------------
+
+5.0.10 (2025-04-22)
+-------------------
+
+5.0.9 (2025-02-27)
+------------------
+
+5.0.8 (2025-02-13)
+------------------
+
+5.0.7 (2025-02-10)
+------------------
+
+5.0.6 (2024-12-11)
+------------------
+* Fix spelling error in topic name (backport `#1049 <https://github.com/ros-perception/image_pipeline/issues/1049>`_) (`#1050 <https://github.com/ros-perception/image_pipeline/issues/1050>`_)
+  <hr>This is an automatic backport of pull request `#1049 <https://github.com/ros-perception/image_pipeline/issues/1049>`_ done by
+  [Mergify](https://mergify.com).
+  Co-authored-by: Michael Ferguson <mfergs7@gmail.com>
+* Contributors: mergify[bot]
+
+5.0.5 (2024-10-31)
+------------------
+
+5.0.4 (2024-08-20)
+------------------
+
+5.0.3 (2024-07-16)
+------------------
+
 5.0.2 (2024-05-27)
 ------------------
 

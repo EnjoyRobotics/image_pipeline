@@ -117,8 +117,8 @@ ImageViewNode::ImageViewNode(const rclcpp::NodeOptions & options)
 
   pub_ = this->create_publisher<sensor_msgs::msg::Image>("output", 1);
   sub_ = image_transport::create_subscription(
-    this, topic, std::bind(
-      &ImageViewNode::imageCb, this, std::placeholders::_1), hints.getTransport());
+    this, topic, std::bind(&ImageViewNode::imageCb, this, std::placeholders::_1),
+    hints.getTransport(), rmw_qos_profile_sensor_data);
 
   auto topics = this->get_topic_names_and_types();
 
@@ -216,6 +216,21 @@ void ImageViewNode::imageCb(const sensor_msgs::msg::Image::ConstSharedPtr & msg)
 
     std::string encoding = msg->encoding.empty() ? "bgr8" : msg->encoding;
 
+    // OpenCV uses BGR colour channel order
+    if (encoding.find("rgb8") != std::string::npos) {
+      encoding = "bgr8";
+    }
+
+    // May want to view raw bayer data
+    if (encoding.find("bayer") != std::string::npos) {
+      encoding = "mono8";
+    }
+
+    // Add a special rule for YUV format
+    if (encoding.find("yuv") != std::string::npos) {
+      encoding = "bgr8";
+    }
+
     queued_image_.set(
       cv_bridge::cvtColorForDisplay(
         cv_bridge::toCvShare(msg), encoding, options));
@@ -286,6 +301,8 @@ void ImageViewNode::windowThread()
       cv::imshow(window_name_, image->image);
       shown_image_.set(image);
       cv::waitKey(1);
+    } else {
+      rclcpp::sleep_for(std::chrono::milliseconds(20));
     }
   }
 
