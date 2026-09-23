@@ -118,7 +118,7 @@ class MonoCalibrator(Calibrator):
                 raise NotImplementedError("Can't perform fisheye calibration with ChArUco board")
 
             reproj_err, self.intrinsics, self.distortion, rvecs, tvecs = (
-                cv2.aruco.calibrateCameraCharuco(
+                self.calibrate_camera_charuco(
                     ipts, ids, boards[0].charuco_board, self.size, intrinsics_in, None
                 )
             )
@@ -153,6 +153,48 @@ class MonoCalibrator(Calibrator):
         self.P = numpy.zeros((3, 4), dtype=numpy.float64)
 
         self.set_alpha(0.0)
+
+    @staticmethod
+    def calibrate_camera_charuco(
+        charuco_corners,
+        charuco_ids,
+        board,
+        image_size,
+        camera_matrix,
+        dist_coeffs,
+        flags=0,
+        criteria=(
+            cv2.TERM_CRITERIA_COUNT + cv2.TERM_CRITERIA_EPS,
+            30,
+            numpy.finfo(numpy.float64).eps,
+        ),
+    ):
+        """Python port of cv2.aruco.calibrateCameraCharuco."""
+        if not (len(charuco_ids) > 0 and len(charuco_ids) == len(charuco_corners)):
+            raise CalibrationException('Mismatched or empty ChArUco corners/ids')
+
+        board_corners = numpy.asarray(board.getChessboardCorners(), dtype=numpy.float32)
+        all_obj_points = []
+        all_img_points = []
+        for corners, ids in zip(charuco_corners, charuco_ids):
+            ids = numpy.asarray(ids, dtype=numpy.int32).reshape(-1)
+            corners = numpy.asarray(corners, dtype=numpy.float32).reshape(-1, 1, 2)
+            if not (len(ids) > 0 and len(ids) == len(corners)):
+                raise CalibrationException('Mismatched or empty ChArUco corners/ids in view')
+            if ids.min() < 0 or ids.max() >= len(board_corners):
+                raise CalibrationException('ChArUco corner id out of board range')
+            all_obj_points.append(board_corners[ids].reshape(-1, 1, 3))
+            all_img_points.append(corners)
+
+        return cv2.calibrateCamera(
+            all_obj_points,
+            all_img_points,
+            image_size,
+            camera_matrix,
+            dist_coeffs,
+            flags=flags,
+            criteria=criteria,
+        )
 
     def set_alpha(self, a):
         """
