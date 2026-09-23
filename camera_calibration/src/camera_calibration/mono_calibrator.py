@@ -72,6 +72,7 @@ class MonoCalibrator(Calibrator):
     """
 
     is_mono = True  # TODO Could get rid of is_mono
+    MIN_FISHEYE_CHARUCO_CORNERS = 6
 
     def __init__(self, *args, **kwargs):
         if 'name' not in kwargs:
@@ -113,10 +114,24 @@ class MonoCalibrator(Calibrator):
         # If FIX_ASPECT_RATIO flag set, enforce focal lengths have 1/1 ratio
         intrinsics_in = numpy.eye(3, dtype=numpy.float64)
 
-        if self.pattern == Patterns.ChArUco:
-            if self.camera_model == CAMERA_MODEL.FISHEYE:
-                raise NotImplementedError("Can't perform fisheye calibration with ChArUco board")
+        if self.pattern == Patterns.ChArUco and self.camera_model == CAMERA_MODEL.FISHEYE:
+            print('mono fisheye ChArUco calibration...')
+            board = boards[0].charuco_board
+            # Fisheye extrinsic init fits a homography per view, so sparse/collinear views fail
+            views = [
+                (co, i)
+                for co, i in zip(ipts, ids)
+                if len(i) >= self.MIN_FISHEYE_CHARUCO_CORNERS
+                and not board.checkCharucoCornersCollinear(i)
+            ]
+            if not views:
+                raise CalibrationException('No ChArUco views usable for fisheye calibration')
+            opts, ipts = self.charuco_object_points(*zip(*views), board, dtype=numpy.float64)
+            reproj_err, self.intrinsics, self.distortion, rvecs, tvecs = cv2.fisheye.calibrate(
+                opts, ipts, self.size, intrinsics_in, None, flags=self.fisheye_calib_flags
+            )
 
+        elif self.pattern == Patterns.ChArUco:
             reproj_err, self.intrinsics, self.distortion, rvecs, tvecs = (
                 self.calibrate_camera_charuco(
                     ipts, ids, boards[0].charuco_board, self.size, intrinsics_in, None
@@ -170,22 +185,9 @@ class MonoCalibrator(Calibrator):
         ),
     ):
         """Python port of cv2.aruco.calibrateCameraCharuco."""
-        if not (len(charuco_ids) > 0 and len(charuco_ids) == len(charuco_corners)):
-            raise CalibrationException('Mismatched or empty ChArUco corners/ids')
-
-        board_corners = numpy.asarray(board.getChessboardCorners(), dtype=numpy.float32)
-        all_obj_points = []
-        all_img_points = []
-        for corners, ids in zip(charuco_corners, charuco_ids):
-            ids = numpy.asarray(ids, dtype=numpy.int32).reshape(-1)
-            corners = numpy.asarray(corners, dtype=numpy.float32).reshape(-1, 1, 2)
-            if not (len(ids) > 0 and len(ids) == len(corners)):
-                raise CalibrationException('Mismatched or empty ChArUco corners/ids in view')
-            if ids.min() < 0 or ids.max() >= len(board_corners):
-                raise CalibrationException('ChArUco corner id out of board range')
-            all_obj_points.append(board_corners[ids].reshape(-1, 1, 3))
-            all_img_points.append(corners)
-
+        all_obj_points, all_img_points = MonoCalibrator.charuco_object_points(
+            charuco_corners, charuco_ids, board, dtype=numpy.float32
+        )
         return cv2.calibrateCamera(
             all_obj_points,
             all_img_points,
@@ -195,6 +197,26 @@ class MonoCalibrator(Calibrator):
             flags=flags,
             criteria=criteria,
         )
+
+    @staticmethod
+    def charuco_object_points(charuco_corners, charuco_ids, board, dtype):
+        """Return per-view (object_points, image_points) lists for detected ChArUco corners."""
+        if not (len(charuco_ids) > 0 and len(charuco_ids) == len(charuco_corners)):
+            raise CalibrationException('Mismatched or empty ChArUco corners/ids')
+
+        board_corners = numpy.asarray(get_charuco_board_corners(board), dtype=dtype)
+        all_obj_points = []
+        all_img_points = []
+        for corners, ids in zip(charuco_corners, charuco_ids):
+            ids = numpy.asarray(ids, dtype=numpy.int32).reshape(-1)
+            corners = numpy.asarray(corners, dtype=dtype).reshape(-1, 1, 2)
+            if not (len(ids) > 0 and len(ids) == len(corners)):
+                raise CalibrationException('Mismatched or empty ChArUco corners/ids in view')
+            if ids.min() < 0 or ids.max() >= len(board_corners):
+                raise CalibrationException('ChArUco corner id out of board range')
+            all_obj_points.append(board_corners[ids].reshape(-1, 1, 3))
+            all_img_points.append(corners)
+        return all_obj_points, all_img_points
 
     def set_alpha(self, a):
         """
