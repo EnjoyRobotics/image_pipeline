@@ -107,6 +107,13 @@ class ChessboardInfo:
                 )
 
 
+def get_charuco_board_corners(charuco_board):
+    """Return ChArUco board inner-corner 3D points for both new and legacy OpenCV boards."""
+    if hasattr(charuco_board, 'getChessboardCorners'):
+        return charuco_board.getChessboardCorners()
+    return charuco_board.chessboardCorners
+
+
 # Make all private!!!!!
 def lmin(seq1, seq2):
     """Pairwise minimum of two sequences."""
@@ -560,7 +567,7 @@ class Calibrator:
 
     def mk_object_points(self, boards, use_board_size=False):
         if self.pattern == Patterns.ChArUco:
-            opts = [board.charuco_board.getChessboardCorners() for board in boards]
+            opts = [get_charuco_board_corners(board.charuco_board) for board in boards]
             return opts
         opts = []
         for b in boards:

@@ -43,6 +43,7 @@ from camera_calibration.calibrator import (
     CalibrationException,
     Calibrator,
     CAMERA_MODEL,
+    get_charuco_board_corners,
     image_from_archive,
     ImageDrawable,
     Patterns,
