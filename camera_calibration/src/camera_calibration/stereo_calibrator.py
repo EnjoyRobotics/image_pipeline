@@ -44,6 +44,7 @@ from camera_calibration.calibrator import (
     CalibrationException,
     Calibrator,
     CAMERA_MODEL,
+    get_charuco_board_corners,
     image_from_archive,
     ImageDrawable,
     Patterns,
@@ -536,7 +537,7 @@ class StereoCalibrator(Calibrator):
             if lcorners is not None and rcorners is not None and len(lcorners) == len(rcorners):
                 # Add samples only with entire board in view if charuco
                 if self.pattern == Patterns.ChArUco:
-                    if len(lcorners) == lboard.charuco_board.chessboardCorners.shape[0]:
+                    if len(lcorners) == len(get_charuco_board_corners(lboard.charuco_board)):
                         self.update_db(lgray, rgray, lcorners, rcorners, lids, rids, lboard)
                 else:
                     self.update_db(lgray, rgray, lcorners, rcorners, lids, rids, lboard)
