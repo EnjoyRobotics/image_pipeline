@@ -73,7 +73,6 @@ class MonoCalibrator(Calibrator):
     """
 
     is_mono = True  # TODO Could get rid of is_mono
-    MIN_FISHEYE_CHARUCO_CORNERS = 6
 
     def __init__(self, *args, **kwargs):
         if 'name' not in kwargs:
@@ -117,17 +116,9 @@ class MonoCalibrator(Calibrator):
 
         if self.pattern == Patterns.ChArUco and self.camera_model == CAMERA_MODEL.FISHEYE:
             print('mono fisheye ChArUco calibration...')
-            board = boards[0].charuco_board
-            # Fisheye extrinsic init fits a homography per view, so sparse/collinear views fail
-            views = [
-                (co, i)
-                for co, i in zip(ipts, ids)
-                if len(i) >= self.MIN_FISHEYE_CHARUCO_CORNERS
-                and not board.checkCharucoCornersCollinear(i)
-            ]
-            if not views:
-                raise CalibrationException('No ChArUco views usable for fisheye calibration')
-            opts, ipts = self.charuco_object_points(*zip(*views), board, dtype=numpy.float64)
+            opts, ipts = self.charuco_object_points(
+                ipts, ids, boards[0].charuco_board, dtype=numpy.float64
+            )
             reproj_err, self.intrinsics, self.distortion, rvecs, tvecs = cv2.fisheye.calibrate(
                 opts, ipts, self.size, intrinsics_in, None, flags=self.fisheye_calib_flags
             )
@@ -425,7 +416,20 @@ class MonoCalibrator(Calibrator):
                 # Add sample to database only if it's sufficiently different from any
                 # previous sample.
                 params = self.get_parameters(corners, ids, board, (gray.shape[1], gray.shape[0]))
-                if self.is_good_sample(
+                small_fisheye_charuco_view = False
+                if self.pattern == Patterns.ChArUco and self.camera_model == CAMERA_MODEL.FISHEYE:
+                    board_pts = numpy.ascontiguousarray(
+                        numpy.asarray(
+                            get_charuco_board_corners(board.charuco_board), dtype=numpy.float32
+                        )[:, :2]
+                    )
+                    seen_pts = board_pts[numpy.asarray(ids).reshape(-1)]
+                    # cv2.fisheye.calibrate diverges on views spanning a small patch of the board
+                    coverage = cv2.contourArea(cv2.convexHull(seen_pts)) / cv2.contourArea(
+                        cv2.convexHull(board_pts)
+                    )
+                    small_fisheye_charuco_view = coverage < 0.3
+                if not small_fisheye_charuco_view and self.is_good_sample(
                     params, corners, ids, self.last_frame_corners, self.last_frame_ids
                 ):
                     self.db.append((params, gray))
